@@ -15,10 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-
-#[macro_use]
-extern crate clap;
-
+use clap::{Command, Arg};
 use std::fs::OpenOptions;
 use std::io::{self, Read, Write};
 
@@ -29,24 +26,38 @@ use uclcli::{decompress, decompress_into_buffer, ucl_init};
 
 const DEFAULT_BUFFER_SIZE: u32 = 512 * 1024 * 1024;
 fn main() -> Result<()> {
-    let matches = clap_app!(unucl =>
-        (version: "0.1")
-        (author: "Kjell Braden <kjell.braden@bmw.de>")
-        (about: "libucl (NRV) decompressor")
-        (@arg INPUT: -i --input [FILE] "Sets the input file to use [defaults to stdin]")
-        (@arg OUTPUT: -o --output [FILE] "Sets the output file to use [defaults to stdout]")
-        (@arg bufsize: -b --buffersize [SIZE] "Sets the decompression buffer size - set this if you know how much data to expect after decompression [defaults to 512MB]")
-    )
-    .get_matches();
+    let matches = Command::new("unucl")
+        .version("0.1")
+        .author("Kjell Braden <kjell.braden@bmw.de>")
+        .about("libucl (NRV) compressor")
+        .arg(Arg::new("INPUT")
+            .short('i')
+            .long("input")
+            .value_name("INPUT")
+            .help("Sets the input file to use [defaults to stdin]"))
+        .arg(Arg::new("OUTPUT")
+            .short('o')
+            .long("output")
+            .value_name("OUTPUT")
+            .help("Sets the output file to use [defaults to stdout]"))
+        .arg(Arg::new("bufsize")
+            .short('b')
+            .long("buffersize")
+            .value_name("bufsize")
+            .help("Sets the decompression buffer size - set this if you know how much data to expect after decompression [defaults to 512MB]"))
+        .get_matches();
+
+
+
 
     ucl_init();
 
     let buffer_size = matches
-        .value_of("bufsize")
+        .get_one::<String>("bufsize")
         .map(|x| x.parse::<u32>().context("failed to parse --buffersize"))
         .unwrap_or(Ok(DEFAULT_BUFFER_SIZE))?;
 
-    let mut input: Box<dyn Read> = match matches.value_of("INPUT") {
+    let mut input: Box<dyn Read> = match matches.get_one::<String>("INPUT") {
         Some(path) => Box::new(
             OpenOptions::new()
                 .read(true)
@@ -59,7 +70,7 @@ fn main() -> Result<()> {
     let mut inbuffer = Vec::new();
     input.read_to_end(&mut inbuffer)?;
 
-    let output_filename = matches.value_of("OUTPUT");
+    let output_filename = matches.get_one::<String>("OUTPUT");
     match output_filename {
         Some(path) => {
             let file = OpenOptions::new()
